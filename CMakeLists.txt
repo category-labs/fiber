@@ -20,10 +20,7 @@ add_library(boost_fiber
   src/future.cpp
   src/mutex.cpp
   src/properties.cpp
-  src/recursive_mutex.cpp
-  src/recursive_timed_mutex.cpp
   src/scheduler.cpp
-  src/timed_mutex.cpp
   src/waker.cpp
 )
 
