@@ -23,7 +23,6 @@
 #include <boost/fiber/fixedsize_stack.hpp>
 #include <boost/fiber/policy.hpp>
 #include <boost/fiber/properties.hpp>
-#include <boost/fiber/segmented_stack.hpp>
 
 #ifdef BOOST_HAS_ABI_HEADERS
 #  include BOOST_ABI_PREFIX

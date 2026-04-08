@@ -26,7 +26,6 @@
 #include <boost/fiber/properties.hpp>
 #include <boost/fiber/protected_fixedsize_stack.hpp>
 #include <boost/fiber/scheduler.hpp>
-#include <boost/fiber/segmented_stack.hpp>
 #include <boost/fiber/type.hpp>
 #include <boost/fiber/unbuffered_channel.hpp>
 
