@@ -24,6 +24,5 @@
 #include <boost/fiber/protected_fixedsize_stack.hpp>
 #include <boost/fiber/scheduler.hpp>
 #include <boost/fiber/type.hpp>
-#include <boost/fiber/unbuffered_channel.hpp>
 
 #endif // BOOST_FIBERS_H
