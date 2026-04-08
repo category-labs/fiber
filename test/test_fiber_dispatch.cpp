@@ -392,10 +392,6 @@ void test_sleep_until() {
     }
 }
 
-void do_wait( boost::fibers::barrier* b) {
-    b->wait();
-}
-
 void test_detach() {
     {
         boost::fibers::fiber f( boost::fibers::launch::dispatch, (detachable()) );
