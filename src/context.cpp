@@ -270,11 +270,6 @@ context::terminate() noexcept {
     // notify all waiting fibers
     wait_queue_.notify_all();
     BOOST_ASSERT( wait_queue_.empty() );
-    // release fiber-specific-data
-    for ( fss_data_t::value_type & data : fss_data_) {
-        data.second.do_cleanup();
-    }
-    fss_data_.clear();
     // switch to another context
     return get_scheduler()->terminate( lk, this);
 }
@@ -337,38 +332,6 @@ context::schedule( context * ctx) noexcept {
     BOOST_ASSERT( get_scheduler() == ctx->get_scheduler() );
     get_scheduler()->schedule( ctx);
 #endif
-}
-
-void *
-context::get_fss_data( void const * vp) const {
-    auto key = reinterpret_cast< uintptr_t >( vp);
-    auto i = fss_data_.find( key);
-    return fss_data_.end() != i ? i->second.vp : nullptr;
-}
-
-void
-context::set_fss_data( void const * vp,
-                       detail::fss_cleanup_function::ptr_t const& cleanup_fn,
-                       void * data,
-                       bool cleanup_existing) {
-    BOOST_ASSERT( cleanup_fn);
-    auto key = reinterpret_cast< uintptr_t >( vp);
-    auto i = fss_data_.find( key);
-    if ( fss_data_.end() != i) {
-        if( cleanup_existing) {
-            i->second.do_cleanup();
-        }
-        if ( nullptr != data) {
-            i->second = fss_data{ data, cleanup_fn };
-        } else {
-            fss_data_.erase( i);
-        }
-    } else {
-        fss_data_.insert(
-            std::make_pair(
-                key,
-                fss_data{ data, cleanup_fn } ) );
-    }
 }
 
 void

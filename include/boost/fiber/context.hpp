@@ -13,7 +13,6 @@
 #include <exception>
 #include <functional>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <tuple>
 #include <type_traits>
@@ -36,7 +35,6 @@
 #include <boost/fiber/detail/config.hpp>
 #include <boost/fiber/detail/data.hpp>
 #include <boost/fiber/detail/decay_copy.hpp>
-#include <boost/fiber/detail/fss.hpp>
 #include <boost/fiber/detail/spinlock.hpp>
 #include <boost/fiber/exceptions.hpp>
 #include <boost/fiber/fixedsize_stack.hpp>
@@ -115,25 +113,6 @@ private:
     template< typename Fn, typename ... Arg > friend class worker_context;
     friend class scheduler;
 
-    struct fss_data {
-        void                                *   vp{ nullptr };
-        detail::fss_cleanup_function::ptr_t     cleanup_function{};
-
-        fss_data() = default;
-
-        fss_data( void * vp_,
-                  detail::fss_cleanup_function::ptr_t fn) noexcept :
-            vp( vp_),
-            cleanup_function(std::move( fn)) {
-            BOOST_ASSERT( cleanup_function);
-        }
-
-        void do_cleanup() {
-            ( * cleanup_function)( vp);
-        }
-    };
-
-    typedef std::map< uintptr_t, fss_data >             fss_data_t;
 
 #if ! defined(BOOST_FIBERS_NO_ATOMICS)
     std::atomic< std::size_t >                          use_count_;
@@ -152,7 +131,6 @@ public:
 #endif
 private:
     scheduler                                       *   scheduler_{ nullptr };
-    fss_data_t                                          fss_data_{};
     detail::sleep_hook                                  sleep_hook_{};
     waker                                               sleep_waker_{};
     detail::ready_hook                                  ready_hook_{};
@@ -295,14 +273,6 @@ public:
     bool is_context( type t) const noexcept {
         return type::none != ( type_ & t);
     }
-
-    void * get_fss_data( void const * vp) const;
-
-    void set_fss_data(
-        void const * vp,
-        detail::fss_cleanup_function::ptr_t const& cleanup_fn,
-        void * data,
-        bool cleanup_existing);
 
     void set_properties( fiber_properties * props) noexcept;
 
