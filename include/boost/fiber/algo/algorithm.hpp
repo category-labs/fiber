@@ -47,6 +47,20 @@ public:
 
     virtual void notify() noexcept = 0;
 
+    // Called after a context has been pushed to remote_ready_queue_ by
+    // schedule_from_remote(). Override to track pending remote work.
+    virtual void on_remote_ready() noexcept {}
+
+    // Called before pick_next() outside the dispatch loop (e.g., yield,
+    // suspend, terminate). Return true to trigger draining of
+    // remote_ready_queue_ before picking the next fiber.
+    virtual bool needs_remote_drain() noexcept { return false; }
+
+    // Called after the dispatch loop drains remote_ready_queue_
+    // unconditionally. Override to clear any pending-work flag so that
+    // needs_remote_drain() does not return a stale true.
+    virtual void clear_remote_drain() noexcept {}
+
     #if !defined(BOOST_EMBTC)
       
     friend void intrusive_ptr_add_ref( algorithm * algo) noexcept {

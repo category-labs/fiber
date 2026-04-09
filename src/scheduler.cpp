@@ -63,6 +63,16 @@ scheduler::remote_ready2ready_() noexcept {
 }
 #endif
 
+context *
+scheduler::pick_next_() noexcept {
+#if ! defined(BOOST_FIBERS_NO_ATOMICS)
+    if ( algo_->needs_remote_drain() ) {
+        remote_ready2ready_();
+    }
+#endif
+    return algo_->pick_next();
+}
+
 void
 scheduler::sleep2ready_() noexcept {
     // move context which the deadline has reached
@@ -136,6 +146,7 @@ scheduler::dispatch() noexcept {
 #if ! defined(BOOST_FIBERS_NO_ATOMICS)
         // get context' from remote ready-queue
         remote_ready2ready_();
+        algo_->clear_remote_drain();
 #endif
         // get sleeping context'
         // must be called after remote_ready2ready_()
@@ -210,6 +221,8 @@ scheduler::schedule_from_remote( context * ctx) noexcept {
     // push new context to remote ready-queue
     ctx->remote_ready_link( remote_ready_queue_);
     lk.unlock();
+    // notify algorithm that remote work is available
+    algo_->on_remote_ready();
     // notify scheduler
     algo_->notify();
 }
@@ -237,7 +250,7 @@ scheduler::terminate( detail::spinlock_lock & lk, context * ctx) noexcept {
     // release lock
     lk.unlock();
     // resume another fiber
-    return algo_->pick_next()->suspend_with_cc();
+    return pick_next_()->suspend_with_cc();
 }
 
 void
@@ -252,7 +265,7 @@ scheduler::yield( context * ctx) noexcept {
     BOOST_ASSERT( ! ctx->sleep_is_linked() );
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
     // resume another fiber
-    algo_->pick_next()->resume( ctx);
+    pick_next_()->resume( ctx);
 }
 
 bool
@@ -271,7 +284,7 @@ scheduler::wait_until( context * ctx,
     ctx->tp_ = sleep_tp;
     ctx->sleep_link( sleep_queue_);
     // resume another context
-    algo_->pick_next()->resume();
+    pick_next_()->resume();
     // context has been resumed
     // check if deadline has reached
     return std::chrono::steady_clock::now() < sleep_tp;
@@ -296,7 +309,7 @@ scheduler::wait_until( context * ctx,
     ctx->tp_ = sleep_tp;
     ctx->sleep_link( sleep_queue_);
     // resume another context
-    algo_->pick_next()->resume( lk);
+    pick_next_()->resume( lk);
     // context has been resumed
     // check if deadline has reached
     return std::chrono::steady_clock::now() < sleep_tp;
@@ -305,13 +318,13 @@ scheduler::wait_until( context * ctx,
 void
 scheduler::suspend() noexcept {
     // resume another context
-    algo_->pick_next()->resume();
+    pick_next_()->resume();
 }
 
 void
 scheduler::suspend( detail::spinlock_lock & lk) noexcept {
     // resume another context
-    algo_->pick_next()->resume( lk);
+    pick_next_()->resume( lk);
 }
 
 bool

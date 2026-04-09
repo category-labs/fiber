@@ -106,6 +106,8 @@ private:
     void remote_ready2ready_() noexcept;
 #endif
 
+    context * pick_next_() noexcept;
+
     void sleep2ready_() noexcept;
 
 public:
