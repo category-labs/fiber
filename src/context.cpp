@@ -338,6 +338,19 @@ context::remote_ready_is_linked() const noexcept {
 }
 
 bool
+context::sleep_is_linked() const noexcept {
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    // Read the atomic mirror, not sleep_hook_ — the hook is modified on
+    // the owning thread (sleep_link / sleep_unlink / sleep_queue_.erase)
+    // and would be a data race when read from a remote thread in
+    // scheduler::schedule_from_remote().
+    return sleep_linked_.load( std::memory_order_acquire);
+#else
+    return sleep_hook_.is_linked();
+#endif
+}
+
+bool
 context::terminated_is_linked() const noexcept {
     return terminated_hook_.is_linked();
 }
@@ -352,6 +365,15 @@ void
 context::ready_unlink() noexcept {
     BOOST_ASSERT( ready_is_linked() );
     ready_hook_.unlink();
+}
+
+void
+context::sleep_unlink() noexcept {
+    BOOST_ASSERT( sleep_is_linked() );
+    sleep_hook_.unlink();
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    sleep_linked_.store( false, std::memory_order_release);
+#endif
 }
 
 void

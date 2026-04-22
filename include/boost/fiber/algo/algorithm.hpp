@@ -46,6 +46,11 @@ public:
 
     virtual void notify() noexcept = 0;
 
+    // Called from a remote thread to schedule a context without going through
+    // remote_ready_queue_. Override in algorithms with a thread-safe ready-queue.
+    // Return true if handled, false to fall back to remote_ready_queue_.
+    virtual bool awakened_from_remote( context *) noexcept { return false; }
+
     #if !defined(BOOST_EMBTC)
       
     friend void intrusive_ptr_add_ref( algorithm * algo) noexcept {

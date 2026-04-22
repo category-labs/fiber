@@ -121,6 +121,17 @@ public:
 #endif
 private:
     scheduler                                       *   scheduler_{ nullptr };
+    detail::sleep_hook                                  sleep_hook_{};
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    // Mirror of sleep_hook_.is_linked() that is safe to read cross-thread.
+    // Writers: scheduler::wait_until (set true), scheduler::sleep2ready_
+    // (clear), context::sleep_unlink (clear). All writers are on the owning
+    // scheduler's thread. Release stores pair with acquire loads in
+    // sleep_is_linked() so that observers of `false` also observe the
+    // preceding unlink of sleep_hook_.
+    std::atomic<bool>                                   sleep_linked_{ false };
+#endif
+    waker                                               sleep_waker_{};
     detail::ready_hook                                  ready_hook_{};
     detail::terminated_hook                             terminated_hook_{};
     detail::worker_hook                                 worker_hook_{};
@@ -292,6 +303,22 @@ public:
         static_assert( std::is_same< typename List::value_traits::hook_type, detail::remote_ready_hook >::value, "not a remote-ready-queue");
         BOOST_ASSERT( ! remote_ready_is_linked() );
         lst.push_back( * this);
+    }
+
+    template< typename Set >
+    void sleep_link( Set & set) noexcept {
+        static_assert( std::is_same< typename Set::value_traits::hook_type,detail::sleep_hook >::value, "not a sleep-queue");
+        BOOST_ASSERT( ! sleep_is_linked() );
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+        // Publish the flag before inserting into the sleep-queue so that
+        // remote readers of sleep_is_linked() never see `false` while the
+        // hook is (or is becoming) linked. False-positives — flag `true`
+        // while the hook has not yet been inserted — are safe: remote
+        // observers fall back to the remote_ready_queue_ slow path, which
+        // is correct regardless of hook state.
+        sleep_linked_.store( true, std::memory_order_release);
+#endif
+        set.insert( * this);
     }
 
     template< typename List >
