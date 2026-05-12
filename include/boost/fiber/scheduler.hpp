@@ -72,9 +72,17 @@ private:
     remote_ready_queue_type                                     remote_ready_queue_{};
 #endif
     algo::algorithm::ptr_t             algo_;
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE) && defined(BOOST_FIBERS_NO_ATOMICS)
+# error "BOOST_FIBERS_AWAKENED_FROM_REMOTE requires multi-thread support (BOOST_FIBERS_NO_ATOMICS must not be defined)"
+#endif
     // worker-queue contains all context' managed by this scheduler
     // except main-context and dispatcher-context
-    // unlink happens on destruction of a context
+    // unlink happens on destruction of a context.
+    // When BOOST_FIBERS_AWAKENED_FROM_REMOTE is defined, worker_splk_
+    // serializes attach/detach_worker_context so a remote thread calling
+    // ctx->detach() inside awakened_from_remote() doesn't race the owning
+    // thread's attach of another fiber.
+    detail::spinlock                                            worker_splk_{};
     worker_queue_type                                           worker_queue_{};
     // terminated-queue contains context' which have been terminated
     terminated_queue_type                                       terminated_queue_{};
