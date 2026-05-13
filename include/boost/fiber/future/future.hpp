@@ -8,7 +8,6 @@
 #define BOOST_FIBERS_FUTURE_HPP
 
 #include <algorithm>
-#include <chrono>
 #include <exception>
 #include <utility>
 
@@ -78,22 +77,6 @@ struct future_base {
         }
         state_->wait();
     }
-
-    template< typename Rep, typename Period >
-    future_status wait_for( std::chrono::duration< Rep, Period > const& timeout_duration) const {
-        if ( BOOST_UNLIKELY( ! valid() ) ) {
-            throw future_uninitialized{};
-        }
-        return state_->wait_for( timeout_duration);
-    }
-
-    template< typename Clock, typename Duration >
-    future_status wait_until( std::chrono::time_point< Clock, Duration > const& timeout_time) const {
-        if ( BOOST_UNLIKELY( ! valid() ) ) {
-            throw future_uninitialized{};
-        }
-        return state_->wait_until( timeout_time);
-    }
 };
 
 template< typename R >
@@ -152,8 +135,6 @@ public:
     using base_type::valid;
     using base_type::get_exception_ptr;
     using base_type::wait;
-    using base_type::wait_for;
-    using base_type::wait_until;
 };
 
 template< typename R >
@@ -201,8 +182,6 @@ public:
     using base_type::valid;
     using base_type::get_exception_ptr;
     using base_type::wait;
-    using base_type::wait_for;
-    using base_type::wait_until;
 };
 
 template<>
@@ -253,8 +232,6 @@ public:
     using base_type::valid;
     using base_type::get_exception_ptr;
     using base_type::wait;
-    using base_type::wait_for;
-    using base_type::wait_until;
 };
 
 
@@ -313,8 +290,6 @@ public:
     using base_type::valid;
     using base_type::get_exception_ptr;
     using base_type::wait;
-    using base_type::wait_for;
-    using base_type::wait_until;
 };
 
 template< typename R >
@@ -372,8 +347,6 @@ public:
     using base_type::valid;
     using base_type::get_exception_ptr;
     using base_type::wait;
-    using base_type::wait_for;
-    using base_type::wait_until;
 };
 
 template<>
@@ -438,8 +411,6 @@ public:
     using base_type::valid;
     using base_type::get_exception_ptr;
     using base_type::wait;
-    using base_type::wait_for;
-    using base_type::wait_until;
 };
 
 

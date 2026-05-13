@@ -45,16 +45,10 @@ round_robin::has_ready_fibers() const noexcept {
 }
 
 void
-round_robin::suspend_until( std::chrono::steady_clock::time_point const& time_point) noexcept {
-    if ( (std::chrono::steady_clock::time_point::max)() == time_point) {
-        std::unique_lock< std::mutex > lk{ mtx_ };
-        cnd_.wait( lk, [&](){ return flag_; });
-        flag_ = false;
-    } else {
-        std::unique_lock< std::mutex > lk{ mtx_ };
-        cnd_.wait_until( lk, time_point, [&](){ return flag_; });
-        flag_ = false;
-    }
+round_robin::suspend() noexcept {
+    std::unique_lock< std::mutex > lk{ mtx_ };
+    cnd_.wait( lk, [&](){ return flag_; });
+    flag_ = false;
 }
 
 void

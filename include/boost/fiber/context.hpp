@@ -8,7 +8,6 @@
 #define BOOST_FIBERS_CONTEXT_H
 
 #include <atomic>
-#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <functional>
@@ -29,7 +28,6 @@
 #include <boost/intrusive/list.hpp>
 #include <boost/intrusive/parent_from_member.hpp>
 #include <boost/intrusive_ptr.hpp>
-#include <boost/intrusive/set.hpp>
 #include <boost/intrusive/slist.hpp>
 
 #include <boost/fiber/detail/config.hpp>
@@ -71,14 +69,6 @@ typedef intrusive::list_member_hook<
         intrusive::auto_unlink
     >
 >                                       ready_hook;
-
-struct sleep_tag;
-typedef intrusive::set_member_hook<
-    intrusive::tag< sleep_tag >,
-    intrusive::link_mode<
-        intrusive::auto_unlink
-    >
->                                       sleep_hook;
 
 struct worker_tag;
 typedef intrusive::list_member_hook<
@@ -131,20 +121,16 @@ public:
 #endif
 private:
     scheduler                                       *   scheduler_{ nullptr };
-    detail::sleep_hook                                  sleep_hook_{};
-    waker                                               sleep_waker_{};
     detail::ready_hook                                  ready_hook_{};
     detail::terminated_hook                             terminated_hook_{};
     detail::worker_hook                                 worker_hook_{};
     fiber_properties                                *   properties_{ nullptr };
     boost::context::fiber                               c_{};
-    std::chrono::steady_clock::time_point               tp_;
     type                                                type_;
     launch                                              policy_;
 
     context( std::size_t initial_count, type t, launch policy) noexcept :
         use_count_{ initial_count },
-        tp_{ (std::chrono::steady_clock::time_point::max)() },
         type_{ t },
         policy_{ policy } {
     }
@@ -256,11 +242,6 @@ public:
 
     void yield() noexcept;
 
-    bool wait_until( std::chrono::steady_clock::time_point const&) noexcept;
-    bool wait_until( std::chrono::steady_clock::time_point const&,
-                     detail::spinlock_lock &,
-                     waker &&) noexcept;
-
     bool wake(const size_t) noexcept;
 
     waker create_waker() noexcept {
@@ -290,8 +271,6 @@ public:
 
     bool remote_ready_is_linked() const noexcept;
 
-    bool sleep_is_linked() const noexcept;
-
     bool terminated_is_linked() const noexcept;
 
     template< typename List >
@@ -315,13 +294,6 @@ public:
         lst.push_back( * this);
     }
 
-    template< typename Set >
-    void sleep_link( Set & set) noexcept {
-        static_assert( std::is_same< typename Set::value_traits::hook_type,detail::sleep_hook >::value, "not a sleep-queue");
-        BOOST_ASSERT( ! sleep_is_linked() );
-        set.insert( * this);
-    }
-
     template< typename List >
     void terminated_link( List & lst) noexcept {
         static_assert( std::is_same< typename List::value_traits::hook_type, detail::terminated_hook >::value, "not a terminated-queue");
@@ -332,8 +304,6 @@ public:
     void worker_unlink() noexcept;
 
     void ready_unlink() noexcept;
-
-    void sleep_unlink() noexcept;
 
     void detach() noexcept;
 

@@ -84,44 +84,6 @@ void test_try_push_full() {
     BOOST_CHECK( boost::fibers::channel_op_status::full == c.try_push( 1) );
 }
 
-void test_push_wait_for() {
-    boost::fibers::buffered_channel< int > c( 2);
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push_wait_for( 1, std::chrono::seconds( 1) ) );
-}
-
-void test_push_wait_for_closed() {
-    boost::fibers::buffered_channel< int > c( 2);
-    c.close();
-    BOOST_CHECK( boost::fibers::channel_op_status::closed == c.push_wait_for( 1, std::chrono::seconds( 1) ) );
-}
-
-void test_push_wait_for_timeout() {
-    boost::fibers::buffered_channel< int > c( 2);
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push_wait_for( 1, std::chrono::seconds( 1) ) );
-    BOOST_CHECK( boost::fibers::channel_op_status::timeout == c.push_wait_for( 1, std::chrono::seconds( 1) ) );
-}
-
-void test_push_wait_until() {
-    boost::fibers::buffered_channel< int > c( 2);
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push_wait_until( 1,
-                    std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-}
-
-void test_push_wait_until_closed() {
-    boost::fibers::buffered_channel< int > c( 2);
-    c.close();
-    BOOST_CHECK( boost::fibers::channel_op_status::closed == c.push_wait_until( 1,
-                    std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-}
-
-void test_push_wait_until_timeout() {
-    boost::fibers::buffered_channel< int > c( 2);
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push_wait_until( 1,
-                    std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-    BOOST_CHECK( boost::fibers::channel_op_status::timeout == c.push_wait_until( 1,
-                    std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-}
-
 void test_pop() {
     boost::fibers::buffered_channel< int > c( 16);
     int v1 = 2, v2 = 0;
@@ -224,93 +186,6 @@ void test_try_pop_success() {
     f1.join();
     f2.join();
     BOOST_CHECK_EQUAL( v1, v2);
-}
-
-void test_pop_wait_for() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v1 = 2, v2 = 0;
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push( v1) );
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.pop_wait_for( v2, std::chrono::seconds( 1) ) );
-    BOOST_CHECK_EQUAL( v1, v2);
-}
-
-void test_pop_wait_for_closed() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v1 = 2, v2 = 0;
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push( v1) );
-    c.close();
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.pop_wait_for( v2, std::chrono::seconds( 1) ) );
-    BOOST_CHECK_EQUAL( v1, v2);
-    BOOST_CHECK( boost::fibers::channel_op_status::closed == c.pop_wait_for( v2, std::chrono::seconds( 1) ) );
-}
-
-void test_pop_wait_for_success() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v1 = 2, v2 = 0;
-    boost::fibers::fiber f1( boost::fibers::launch::dispatch, [&c,&v2](){
-        BOOST_CHECK( boost::fibers::channel_op_status::success == c.pop_wait_for( v2, std::chrono::seconds( 1) ) );
-    });
-    boost::fibers::fiber f2( boost::fibers::launch::dispatch, [&c,v1](){
-        BOOST_CHECK( boost::fibers::channel_op_status::success == c.push( v1) );
-    });
-    f1.join();
-    f2.join();
-    BOOST_CHECK_EQUAL( v1, v2);
-}
-
-void test_pop_wait_for_timeout() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v = 0;
-    boost::fibers::fiber f( boost::fibers::launch::dispatch, [&c,&v](){
-        BOOST_CHECK( boost::fibers::channel_op_status::timeout == c.pop_wait_for( v, std::chrono::seconds( 1) ) );
-    });
-    f.join();
-}
-
-void test_pop_wait_until() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v1 = 2, v2 = 0;
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push( v1) );
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.pop_wait_until( v2,
-            std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-    BOOST_CHECK_EQUAL( v1, v2);
-}
-
-void test_pop_wait_until_closed() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v1 = 2, v2 = 0;
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.push( v1) );
-    c.close();
-    BOOST_CHECK( boost::fibers::channel_op_status::success == c.pop_wait_until( v2,
-            std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-    BOOST_CHECK_EQUAL( v1, v2);
-    BOOST_CHECK( boost::fibers::channel_op_status::closed == c.pop_wait_until( v2,
-            std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-}
-
-void test_pop_wait_until_success() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v1 = 2, v2 = 0;
-    boost::fibers::fiber f1( boost::fibers::launch::dispatch, [&c,&v2](){
-        BOOST_CHECK( boost::fibers::channel_op_status::success == c.pop_wait_until( v2,
-                    std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-    });
-    boost::fibers::fiber f2( boost::fibers::launch::dispatch, [&c,v1](){
-        BOOST_CHECK( boost::fibers::channel_op_status::success == c.push( v1) );
-    });
-    f1.join();
-    f2.join();
-    BOOST_CHECK_EQUAL( v1, v2);
-}
-
-void test_pop_wait_until_timeout() {
-    boost::fibers::buffered_channel< int > c( 16);
-    int v = 0;
-    boost::fibers::fiber f( boost::fibers::launch::dispatch, [&c,&v](){
-        BOOST_CHECK( boost::fibers::channel_op_status::timeout == c.pop_wait_until( v,
-                    std::chrono::system_clock::now() + std::chrono::seconds( 1) ) );
-    });
-    f.join();
 }
 
 void test_wm_1() {
@@ -499,12 +374,6 @@ boost::unit_test::test_suite * init_unit_test_suite( int, char* []) {
      test->add( BOOST_TEST_CASE( & test_try_push) );
      test->add( BOOST_TEST_CASE( & test_try_push_closed) );
      test->add( BOOST_TEST_CASE( & test_try_push_full) );
-     test->add( BOOST_TEST_CASE( & test_push_wait_for) );
-     test->add( BOOST_TEST_CASE( & test_push_wait_for_closed) );
-     test->add( BOOST_TEST_CASE( & test_push_wait_for_timeout) );
-     test->add( BOOST_TEST_CASE( & test_push_wait_until) );
-     test->add( BOOST_TEST_CASE( & test_push_wait_until_closed) );
-     test->add( BOOST_TEST_CASE( & test_push_wait_until_timeout) );
      test->add( BOOST_TEST_CASE( & test_pop) );
      test->add( BOOST_TEST_CASE( & test_pop_closed) );
      test->add( BOOST_TEST_CASE( & test_pop_success) );
@@ -514,14 +383,6 @@ boost::unit_test::test_suite * init_unit_test_suite( int, char* []) {
      test->add( BOOST_TEST_CASE( & test_try_pop) );
      test->add( BOOST_TEST_CASE( & test_try_pop_closed) );
      test->add( BOOST_TEST_CASE( & test_try_pop_success) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_for) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_for_closed) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_for_success) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_for_timeout) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_until) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_until_closed) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_until_success) );
-     test->add( BOOST_TEST_CASE( & test_pop_wait_until_timeout) );
      test->add( BOOST_TEST_CASE( & test_wm_1) );
      test->add( BOOST_TEST_CASE( & test_wm_2) );
      test->add( BOOST_TEST_CASE( & test_moveable) );

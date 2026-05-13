@@ -9,7 +9,6 @@
 #define BOOST_FIBERS_BUFFERED_CHANNEL_H
 
 #include <atomic>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -21,7 +20,6 @@
 #include <boost/fiber/context.hpp>
 #include <boost/fiber/waker.hpp>
 #include <boost/fiber/detail/config.hpp>
-#include <boost/fiber/detail/convert.hpp>
 #include <boost/fiber/detail/spinlock.hpp>
 #include <boost/fiber/exceptions.hpp>
 
@@ -187,75 +185,6 @@ public:
         }
     }
 
-    template< typename Rep, typename Period >
-    channel_op_status push_wait_for( value_type const& value,
-                                     std::chrono::duration< Rep, Period > const& timeout_duration) {
-        return push_wait_until( value,
-                                std::chrono::steady_clock::now() + timeout_duration);
-    }
-
-    template< typename Rep, typename Period >
-    channel_op_status push_wait_for( value_type && value,
-                                     std::chrono::duration< Rep, Period > const& timeout_duration) {
-        return push_wait_until( std::forward< value_type >( value),
-                                std::chrono::steady_clock::now() + timeout_duration);
-    }
-
-    template< typename Clock, typename Duration >
-    channel_op_status push_wait_until( value_type const& value,
-                                       std::chrono::time_point< Clock, Duration > const& timeout_time_) {
-        context * active_ctx = context::active();
-        std::chrono::steady_clock::time_point timeout_time = detail::convert( timeout_time_);
-        for (;;) {
-            detail::spinlock_lock lk{splk_, std::try_to_lock};
-            if (!lk) {
-                active_ctx->yield();
-                continue;
-            }
-            if ( BOOST_UNLIKELY( is_closed_() ) ) {
-                return channel_op_status::closed;
-            }
-            if ( is_full_() ) {
-                if ( ! waiting_producers_.suspend_and_wait_until( lk, active_ctx, timeout_time)) {
-                    return channel_op_status::timeout;
-                }
-            } else {
-                slots_[pidx_] = value;
-                pidx_ = (pidx_ + 1) % capacity_;
-                waiting_consumers_.notify_one();
-                return channel_op_status::success;
-            }
-        }
-    }
-
-    template< typename Clock, typename Duration >
-    channel_op_status push_wait_until( value_type && value,
-                                       std::chrono::time_point< Clock, Duration > const& timeout_time_) {
-        context * active_ctx = context::active();
-        std::chrono::steady_clock::time_point timeout_time = detail::convert( timeout_time_);
-        for (;;) {
-            detail::spinlock_lock lk{splk_, std::try_to_lock};
-            if (!lk) {
-                active_ctx->yield();
-                continue;
-            }
-            if ( BOOST_UNLIKELY( is_closed_() ) ) {
-                return channel_op_status::closed;
-            }
-            if ( is_full_() ) {
-                if ( ! waiting_producers_.suspend_and_wait_until( lk, active_ctx, timeout_time)) {
-                    return channel_op_status::timeout;
-                }
-            } else {
-                slots_[pidx_] = std::move( value);
-                pidx_ = (pidx_ + 1) % capacity_;
-                // notify one waiting consumer
-                waiting_consumers_.notify_one();
-                return channel_op_status::success;
-            }
-        }
-    }
-
     channel_op_status try_pop( value_type & value) {
         detail::spinlock_lock lk{splk_, std::defer_lock};
         for(;;) {            
@@ -316,40 +245,6 @@ public:
                 cidx_ = (cidx_ + 1) % capacity_;
                 waiting_producers_.notify_one();
                 return value;
-            }
-        }
-    }
-
-    template< typename Rep, typename Period >
-    channel_op_status pop_wait_for( value_type & value,
-                                    std::chrono::duration< Rep, Period > const& timeout_duration) {
-        return pop_wait_until( value,
-                               std::chrono::steady_clock::now() + timeout_duration);
-    }
-
-    template< typename Clock, typename Duration >
-    channel_op_status pop_wait_until( value_type & value,
-                                      std::chrono::time_point< Clock, Duration > const& timeout_time_) {
-        context * active_ctx = context::active();
-        std::chrono::steady_clock::time_point timeout_time = detail::convert( timeout_time_);
-        for (;;) {
-            detail::spinlock_lock lk{splk_, std::try_to_lock};
-            if (!lk) {
-                active_ctx->yield();
-                continue;
-            }
-            if ( is_empty_() ) {
-                if ( BOOST_UNLIKELY( is_closed_() ) ) {
-                    return channel_op_status::closed;
-                }
-                if ( ! waiting_consumers_.suspend_and_wait_until( lk, active_ctx, timeout_time)) {
-                    return channel_op_status::timeout;
-                }
-            } else {
-                value = std::move( slots_[cidx_]);
-                cidx_ = (cidx_ + 1) % capacity_;
-                waiting_producers_.notify_one();
-                return channel_op_status::success;
             }
         }
     }

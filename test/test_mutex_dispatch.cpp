@@ -110,24 +110,6 @@ struct test_exclusive {
 void do_test_mutex() {
     test_lock< boost::fibers::mutex >()();
     test_exclusive< boost::fibers::mutex >()();
-
-    {
-        boost::fibers::mutex mtx;
-        mtx.lock();
-        boost::fibers::fiber f( boost::fibers::launch::dispatch, & fn17, std::ref( mtx) );
-        boost::this_fiber::sleep_for( ms(250) );
-        mtx.unlock();
-        f.join();
-    }
-
-    {
-        boost::fibers::mutex mtx;
-        mtx.lock();
-        boost::fibers::fiber f( boost::fibers::launch::dispatch, & fn18, std::ref( mtx) );
-        boost::this_fiber::sleep_for( ms(250) );
-        mtx.unlock();
-        f.join();
-    }
 }
 
 void test_mutex() {

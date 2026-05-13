@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <functional>
 #include <mutex>
 
@@ -19,7 +18,6 @@
 
 #include <boost/fiber/context.hpp>
 #include <boost/fiber/detail/config.hpp>
-#include <boost/fiber/detail/convert.hpp>
 #include <boost/fiber/detail/spinlock.hpp>
 #include <boost/fiber/exceptions.hpp>
 #include <boost/fiber/mutex.hpp>
@@ -89,56 +87,6 @@ public:
             wait( lt);
         }
     }
-
-    template< typename LockType, typename Clock, typename Duration >
-    cv_status wait_until( LockType & lt, std::chrono::time_point< Clock, Duration > const& timeout_time_) {
-        context * active_ctx = context::active();
-        cv_status status = cv_status::no_timeout;
-        std::chrono::steady_clock::time_point timeout_time = detail::convert( timeout_time_);
-        // atomically call lt.unlock() and block on *this
-        // store this fiber in waiting-queue
-        detail::spinlock_lock lk{ wait_queue_splk_ };
-        // unlock external lt
-        lt.unlock();
-        if ( ! wait_queue_.suspend_and_wait_until( lk, active_ctx, timeout_time)) {
-            status = cv_status::timeout;
-        }
-        // relock external again before returning
-        try {
-            lt.lock();
-#if defined(BOOST_CONTEXT_HAS_CXXABI_H)
-        } catch ( abi::__forced_unwind const&) {
-            throw;
-#endif
-        } catch (...) {
-            std::terminate();
-        }
-        return status;
-    }
-
-    template< typename LockType, typename Clock, typename Duration, typename Pred >
-    bool wait_until( LockType & lt,
-                     std::chrono::time_point< Clock, Duration > const& timeout_time, Pred pred) {
-        while ( ! pred() ) {
-            if ( cv_status::timeout == wait_until( lt, timeout_time) ) {
-                return pred();
-            }
-        }
-        return true;
-    }
-
-    template< typename LockType, typename Rep, typename Period >
-    cv_status wait_for( LockType & lt, std::chrono::duration< Rep, Period > const& timeout_duration) {
-        return wait_until( lt,
-                           std::chrono::steady_clock::now() + timeout_duration);
-    }
-
-    template< typename LockType, typename Rep, typename Period, typename Pred >
-    bool wait_for( LockType & lt, std::chrono::duration< Rep, Period > const& timeout_duration, Pred pred) {
-        return wait_until( lt,
-                           std::chrono::steady_clock::now() + timeout_duration,
-                           pred);
-    }
 };
 
 class BOOST_FIBERS_DECL condition_variable {
@@ -178,58 +126,6 @@ public:
         // post-condition
         BOOST_ASSERT( lt.owns_lock() );
         BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-    }
-
-    template< typename Clock, typename Duration >
-    cv_status wait_until( std::unique_lock< mutex > & lt,
-                          std::chrono::time_point< Clock, Duration > const& timeout_time) {
-        // pre-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        cv_status result = cnd_.wait_until( lt, timeout_time);
-        // post-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        return result;
-    }
-
-    template< typename Clock, typename Duration, typename Pred >
-    bool wait_until( std::unique_lock< mutex > & lt,
-                     std::chrono::time_point< Clock, Duration > const& timeout_time, Pred pred) {
-        // pre-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        bool result = cnd_.wait_until( lt, timeout_time, pred);
-        // post-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        return result;
-    }
-
-    template< typename Rep, typename Period >
-    cv_status wait_for( std::unique_lock< mutex > & lt,
-                        std::chrono::duration< Rep, Period > const& timeout_duration) {
-        // pre-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        cv_status result = cnd_.wait_for( lt, timeout_duration);
-        // post-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        return result;
-    }
-
-    template< typename Rep, typename Period, typename Pred >
-    bool wait_for( std::unique_lock< mutex > & lt,
-                   std::chrono::duration< Rep, Period > const& timeout_duration, Pred pred) {
-        // pre-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        bool result = cnd_.wait_for( lt, timeout_duration, pred);
-        // post-condition
-        BOOST_ASSERT( lt.owns_lock() );
-        BOOST_ASSERT( context::active() == lt.mutex()->owner_);
-        return result;
     }
 };
 

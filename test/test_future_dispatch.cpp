@@ -87,22 +87,6 @@ A fn10() {
     return A();
 }
 
-void fn11( boost::fibers::promise< int > p) {
-  boost::this_fiber::sleep_for( ms(500) );
-  p.set_value(3);
-}
-
-void fn12( boost::fibers::promise< int& > p) {
-  boost::this_fiber::sleep_for( ms(500) );
-  gi = 5;
-  p.set_value( gi);
-}
-
-void fn13( boost::fibers::promise< void > p) {
-  boost::this_fiber::sleep_for( ms(400) );
-  p.set_value();
-}
-
 // future
 void test_future_create() {
     // default constructed future is not valid
@@ -401,126 +385,6 @@ void test_future_wait_void() {
     BOOST_CHECK( ! f1.valid() );
 }
 
-void test_future_wait_for() {
-    // future retrieved from promise is valid (if it is the first)
-    boost::fibers::promise< int > p1;
-    boost::fibers::future< int > f1 = p1.get_future();
-
-    boost::fibers::fiber( boost::fibers::launch::dispatch, fn11, std::move( p1) ).detach();
-
-    // wait on future
-    BOOST_CHECK( f1.valid() );
-    boost::fibers::future_status status = f1.wait_for( ms(300) );
-    BOOST_CHECK( boost::fibers::future_status::timeout == status);
-
-    BOOST_CHECK( f1.valid() );
-    status = f1.wait_for( ms(400) );
-    BOOST_CHECK( boost::fibers::future_status::ready == status);
-
-    BOOST_CHECK( f1.valid() );
-    f1.wait();
-}
-
-void test_future_wait_for_ref() {
-    // future retrieved from promise is valid (if it is the first)
-    boost::fibers::promise< int& > p1;
-    boost::fibers::future< int& > f1 = p1.get_future();
-
-    boost::fibers::fiber( boost::fibers::launch::dispatch, fn12, std::move( p1) ).detach();
-
-    // wait on future
-    BOOST_CHECK( f1.valid() );
-    boost::fibers::future_status status = f1.wait_for( ms(300) );
-    BOOST_CHECK( boost::fibers::future_status::timeout == status);
-
-    BOOST_CHECK( f1.valid() );
-    status = f1.wait_for( ms(400) );
-    BOOST_CHECK( boost::fibers::future_status::ready == status);
-
-    BOOST_CHECK( f1.valid() );
-    f1.wait();
-}
-
-void test_future_wait_for_void() {
-    // future retrieved from promise is valid (if it is the first)
-    boost::fibers::promise< void > p1;
-    boost::fibers::future< void > f1 = p1.get_future();
-
-    boost::fibers::fiber( boost::fibers::launch::dispatch, fn13, std::move( p1) ).detach();
-
-    // wait on future
-    BOOST_CHECK( f1.valid() );
-    boost::fibers::future_status status = f1.wait_for( ms(300) );
-    BOOST_CHECK( boost::fibers::future_status::timeout == status);
-
-    BOOST_CHECK( f1.valid() );
-    status = f1.wait_for( ms(400) );
-    BOOST_CHECK( boost::fibers::future_status::ready == status);
-
-    BOOST_CHECK( f1.valid() );
-    f1.wait();
-}
-
-void test_future_wait_until() {
-    // future retrieved from promise is valid (if it is the first)
-    boost::fibers::promise< int > p1;
-    boost::fibers::future< int > f1 = p1.get_future();
-
-    boost::fibers::fiber( boost::fibers::launch::dispatch, fn11, std::move( p1) ).detach();
-
-    // wait on future
-    BOOST_CHECK( f1.valid() );
-    boost::fibers::future_status status = f1.wait_until( Clock::now() + ms(300) );
-    BOOST_CHECK( boost::fibers::future_status::timeout == status);
-
-    BOOST_CHECK( f1.valid() );
-    status = f1.wait_until( Clock::now() + ms(400) );
-    BOOST_CHECK( boost::fibers::future_status::ready == status);
-
-    BOOST_CHECK( f1.valid() );
-    f1.wait();
-}
-
-void test_future_wait_until_ref() {
-    // future retrieved from promise is valid (if it is the first)
-    boost::fibers::promise< int& > p1;
-    boost::fibers::future< int& > f1 = p1.get_future();
-
-    boost::fibers::fiber( boost::fibers::launch::dispatch, fn12, std::move( p1) ).detach();
-
-    // wait on future
-    BOOST_CHECK( f1.valid() );
-    boost::fibers::future_status status = f1.wait_until( Clock::now() + ms(300) );
-    BOOST_CHECK( boost::fibers::future_status::timeout == status);
-
-    BOOST_CHECK( f1.valid() );
-    status = f1.wait_until( Clock::now() + ms(400) );
-    BOOST_CHECK( boost::fibers::future_status::ready == status);
-
-    BOOST_CHECK( f1.valid() );
-    f1.wait();
-}
-
-void test_future_wait_until_void() {
-    // future retrieved from promise is valid (if it is the first)
-    boost::fibers::promise< void > p1;
-    boost::fibers::future< void > f1 = p1.get_future();
-
-    boost::fibers::fiber( boost::fibers::launch::dispatch, fn13, std::move( p1) ).detach();
-
-    // wait on future
-    BOOST_CHECK( f1.valid() );
-    boost::fibers::future_status status = f1.wait_until( Clock::now() + ms(300) );
-    BOOST_CHECK( boost::fibers::future_status::timeout == status);
-
-    BOOST_CHECK( f1.valid() );
-    status = f1.wait_until( Clock::now() + ms(400) );
-    BOOST_CHECK( boost::fibers::future_status::ready == status);
-
-    BOOST_CHECK( f1.valid() );
-    f1.wait();
-}
-
 void test_future_wait_with_fiber_1() {
     boost::fibers::promise< int > p1;
     boost::fibers::fiber( boost::fibers::launch::dispatch, fn1, & p1, 7).detach();
@@ -556,12 +420,6 @@ boost::unit_test_framework::test_suite* init_unit_test_suite(int, char*[]) {
     test->add(BOOST_TEST_CASE(test_future_wait));
     test->add(BOOST_TEST_CASE(test_future_wait_ref));
     test->add(BOOST_TEST_CASE(test_future_wait_void));
-    test->add(BOOST_TEST_CASE(test_future_wait_for));
-    test->add(BOOST_TEST_CASE(test_future_wait_for_ref));
-    test->add(BOOST_TEST_CASE(test_future_wait_for_void));
-    test->add(BOOST_TEST_CASE(test_future_wait_until));
-    test->add(BOOST_TEST_CASE(test_future_wait_until_ref));
-    test->add(BOOST_TEST_CASE(test_future_wait_until_void));
     test->add(BOOST_TEST_CASE(test_future_wait_with_fiber_1));
     test->add(BOOST_TEST_CASE(test_future_wait_with_fiber_2));
 

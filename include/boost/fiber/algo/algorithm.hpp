@@ -7,7 +7,6 @@
 #define BOOST_FIBERS_ALGO_ALGORITHM_H
 
 #include <atomic>
-#include <chrono>
 #include <cstddef>
 
 #include <boost/assert.hpp>
@@ -43,7 +42,7 @@ public:
 
     virtual bool has_ready_fibers() const noexcept = 0;
 
-    virtual void suspend_until( std::chrono::steady_clock::time_point const&) noexcept = 0;
+    virtual void suspend() noexcept = 0;
 
     virtual void notify() noexcept = 0;
 

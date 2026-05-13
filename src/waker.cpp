@@ -22,30 +22,6 @@ wait_queue::suspend_and_wait( detail::spinlock_lock & lk, context * active_ctx) 
     BOOST_ASSERT( ! w.is_linked() );
 }
 
-bool
-wait_queue::suspend_and_wait_until( detail::spinlock_lock & lk,
-                                context * active_ctx,
-                                std::chrono::steady_clock::time_point const& timeout_time) {
-    waker_with_hook w{ active_ctx->create_waker() };
-    slist_.push_back(w);
-    // suspend this fiber
-    if ( ! active_ctx->wait_until( timeout_time, lk, waker(w)) ) {
-        // relock local lk
-        for(;;) {            
-            if(lk.try_lock())
-                break;
-            active_ctx->yield();            
-        }
-        // remove from waiting-queue
-        if ( w.is_linked()) {
-            slist_.remove( w);
-        }
-        lk.unlock();
-        return false;
-    }
-    return true;
-}
-
 void
 wait_queue::notify_one() {
     while ( ! slist_.empty() ) {

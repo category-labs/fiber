@@ -352,68 +352,6 @@ void test_yield() {
     BOOST_CHECK_EQUAL( 8, v2);
 }
 
-void test_sleep_for() {
-    typedef std::chrono::system_clock Clock;
-    typedef Clock::time_point time_point;
-    std::chrono::milliseconds ms(500);
-    time_point t0 = Clock::now();
-    boost::this_fiber::sleep_for(ms);
-    time_point t1 = Clock::now();
-    std::chrono::nanoseconds ns = (t1 - t0) - ms;
-    std::chrono::nanoseconds err = ms / 10;
-    // This test is spurious as it depends on the time the fiber system switches the fiber
-    BOOST_CHECK((std::max)(ns.count(), -ns.count()) < (err+std::chrono::milliseconds(1000)).count());
-}
-
-void test_sleep_until() {
-    {
-        typedef std::chrono::steady_clock Clock;
-        typedef Clock::time_point time_point;
-        std::chrono::milliseconds ms(500);
-        time_point t0 = Clock::now();
-        boost::this_fiber::sleep_until(t0 + ms);
-        time_point t1 = Clock::now();
-        std::chrono::nanoseconds ns = (t1 - t0) - ms;
-        std::chrono::nanoseconds err = ms / 10;
-        // This test is spurious as it depends on the time the thread system switches the threads
-        BOOST_CHECK((std::max)(ns.count(), -ns.count()) < (err+std::chrono::milliseconds(1000)).count());
-    }
-    {
-        typedef std::chrono::system_clock Clock;
-        typedef Clock::time_point time_point;
-        std::chrono::milliseconds ms(500);
-        time_point t0 = Clock::now();
-        boost::this_fiber::sleep_until(t0 + ms);
-        time_point t1 = Clock::now();
-        std::chrono::nanoseconds ns = (t1 - t0) - ms;
-        std::chrono::nanoseconds err = ms / 10;
-        // This test is spurious as it depends on the time the thread system switches the threads
-        BOOST_CHECK((std::max)(ns.count(), -ns.count()) < (err+std::chrono::milliseconds(1000)).count());
-    }
-}
-
-void test_detach() {
-    {
-        boost::fibers::fiber f( boost::fibers::launch::dispatch, (detachable()) );
-        BOOST_CHECK( f.joinable() );
-        f.detach();
-        BOOST_CHECK( ! f.joinable() );
-        boost::this_fiber::sleep_for( std::chrono::milliseconds(250) );
-        BOOST_CHECK( detachable::was_running);
-        BOOST_CHECK_EQUAL( 0, detachable::alive_count);
-    }
-    {
-        boost::fibers::fiber f( boost::fibers::launch::dispatch, (detachable()) );
-        BOOST_CHECK( f.joinable() );
-        boost::this_fiber::yield();
-        f.detach();
-        BOOST_CHECK( ! f.joinable() );
-        boost::this_fiber::sleep_for( std::chrono::milliseconds(250) );
-        BOOST_CHECK( detachable::was_running);
-        BOOST_CHECK_EQUAL( 0, detachable::alive_count);
-    }
-}
-
 boost::unit_test::test_suite * init_unit_test_suite( int, char* []) {
     boost::unit_test::test_suite * test =
         BOOST_TEST_SUITE("Boost.Fiber: fiber test suite");
@@ -428,9 +366,6 @@ boost::unit_test::test_suite * init_unit_test_suite( int, char* []) {
     test->add( BOOST_TEST_CASE( & test_join_in_fiber) );
     test->add( BOOST_TEST_CASE( & test_move_fiber) );
     test->add( BOOST_TEST_CASE( & test_yield) );
-    test->add( BOOST_TEST_CASE( & test_sleep_for) );
-    test->add( BOOST_TEST_CASE( & test_sleep_until) );
-    test->add( BOOST_TEST_CASE( & test_detach) );
 
     return test;
 }

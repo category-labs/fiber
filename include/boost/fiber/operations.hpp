@@ -6,14 +6,11 @@
 #ifndef BOOST_THIS_FIBER_OPERATIONS_H
 #define BOOST_THIS_FIBER_OPERATIONS_H
 
-#include <chrono>
-
-#include <boost/config.hpp> 
+#include <boost/config.hpp>
 
 #include <boost/fiber/algo/algorithm.hpp>
 #include <boost/fiber/context.hpp>
 #include <boost/fiber/detail/config.hpp>
-#include <boost/fiber/detail/convert.hpp>
 #include <boost/fiber/fiber.hpp>
 #include <boost/fiber/scheduler.hpp>
 #include <boost/fiber/stack_allocator_wrapper.hpp>
@@ -33,19 +30,6 @@ fibers::fiber::id get_id() noexcept {
 inline
 void yield() noexcept {
     fibers::context::active()->yield();
-}
-
-template< typename Clock, typename Duration >
-void sleep_until( std::chrono::time_point< Clock, Duration > const& sleep_time_) {
-    std::chrono::steady_clock::time_point sleep_time = boost::fibers::detail::convert( sleep_time_);
-    fibers::context * active_ctx = fibers::context::active();
-    active_ctx->wait_until( sleep_time);
-}
-
-template< typename Rep, typename Period >
-void sleep_for( std::chrono::duration< Rep, Period > const& timeout_duration) {
-    fibers::context * active_ctx = fibers::context::active();
-    active_ctx->wait_until( std::chrono::steady_clock::now() + timeout_duration);
 }
 
 template< typename PROPS >

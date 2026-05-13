@@ -7,7 +7,6 @@
 #define BOOST_FIBERS_ALGO_ROUND_ROBIN_H
 
 #include <condition_variable>
-#include <chrono>
 #include <mutex>
 
 #include <boost/config.hpp>
@@ -51,7 +50,7 @@ public:
 
     bool has_ready_fibers() const noexcept override;
 
-    void suspend_until( std::chrono::steady_clock::time_point const&) noexcept override;
+    void suspend() noexcept override;
 
     void notify() noexcept override;
 };

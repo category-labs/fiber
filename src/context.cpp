@@ -161,7 +161,6 @@ context::~context() {
     std::unique_lock< detail::spinlock > lk{ splk_ };
     BOOST_ASSERT( ! ready_is_linked() );
     BOOST_ASSERT( ! remote_ready_is_linked() );
-    BOOST_ASSERT( ! sleep_is_linked() );
     if ( is_context( type::dispatcher_context) ) {
         BOOST_ASSERT( nullptr == active() );
     }
@@ -274,23 +273,6 @@ context::terminate() noexcept {
     return get_scheduler()->terminate( lk, this);
 }
 
-bool
-context::wait_until( std::chrono::steady_clock::time_point const& tp) noexcept {
-    BOOST_ASSERT( nullptr != get_scheduler() );
-    BOOST_ASSERT( this == active() );
-    return get_scheduler()->wait_until( this, tp);
-}
-
-bool
-context::wait_until( std::chrono::steady_clock::time_point const& tp,
-                     detail::spinlock_lock & lk,
-                     waker && w) noexcept {
-    BOOST_ASSERT( nullptr != get_scheduler() );
-    BOOST_ASSERT( this == active() );
-    return get_scheduler()->wait_until( this, tp, lk, std::move(w));
-}
-
-
 bool context::wake(const size_t epoch) noexcept
 {
     size_t expected = epoch;
@@ -356,11 +338,6 @@ context::remote_ready_is_linked() const noexcept {
 }
 
 bool
-context::sleep_is_linked() const noexcept {
-    return sleep_hook_.is_linked();
-}
-
-bool
 context::terminated_is_linked() const noexcept {
     return terminated_hook_.is_linked();
 }
@@ -375,12 +352,6 @@ void
 context::ready_unlink() noexcept {
     BOOST_ASSERT( ready_is_linked() );
     ready_hook_.unlink();
-}
-
-void
-context::sleep_unlink() noexcept {
-    BOOST_ASSERT( sleep_is_linked() );
-    sleep_hook_.unlink();
 }
 
 void

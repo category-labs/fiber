@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <cstddef>
 #include <exception>
 #include <memory>
@@ -80,24 +79,6 @@ protected:
         waiters_.wait( lk, [this](){ return ready_; });
     }
 
-    template< typename Rep, typename Period >
-    future_status wait_for_( std::unique_lock< mutex > & lk,
-                             std::chrono::duration< Rep, Period > const& timeout_duration) const {
-        BOOST_ASSERT( lk.owns_lock() );
-        return waiters_.wait_for( lk, timeout_duration, [this](){ return ready_; })
-                    ? future_status::ready
-                    : future_status::timeout;
-    }
-
-    template< typename Clock, typename Duration >
-    future_status wait_until_( std::unique_lock< mutex > & lk,
-                               std::chrono::time_point< Clock, Duration > const& timeout_time) const {
-        BOOST_ASSERT( lk.owns_lock() );
-        return waiters_.wait_until( lk, timeout_time, [this](){ return ready_; })
-                    ? future_status::ready
-                    : future_status::timeout;
-    }
-
     virtual void deallocate_future() noexcept = 0;
 
 public:
@@ -126,18 +107,6 @@ public:
     void wait() const {
         std::unique_lock< mutex > lk{ mtx_ };
         wait_( lk);
-    }
-
-    template< typename Rep, typename Period >
-    future_status wait_for( std::chrono::duration< Rep, Period > const& timeout_duration) const {
-        std::unique_lock< mutex > lk{ mtx_ };
-        return wait_for_( lk, timeout_duration);
-    }
-
-    template< typename Clock, typename Duration >
-    future_status wait_until( std::chrono::time_point< Clock, Duration > const& timeout_time) const {
-        std::unique_lock< mutex > lk{ mtx_ };
-        return wait_until_( lk, timeout_time);
     }
 
     friend inline
