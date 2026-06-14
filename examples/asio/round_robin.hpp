@@ -49,11 +49,11 @@ public:
     struct service : public boost::asio::io_context::service {
         static boost::asio::io_context::id                  id;
 
-        std::unique_ptr< boost::asio::io_context::work >    work_;
+        boost::asio::executor_work_guard< boost::asio::io_context::executor_type >    work_;
 
-        service( boost::asio::io_context & io_ctx) :
-            boost::asio::io_context::service( io_ctx),
-            work_{ new boost::asio::io_context::work( io_ctx) } {
+        service( boost::asio::execution_context & ctx) :
+            boost::asio::io_context::service( static_cast< boost::asio::io_context & >( ctx) ),
+            work_{ boost::asio::make_work_guard( static_cast< boost::asio::io_context & >( ctx) ) } {
         }
 
         virtual ~service() {}
@@ -61,7 +61,7 @@ public:
         service( service const&) = delete;
         service & operator=( service const&) = delete;
 
-        void shutdown_service() override final {
+        void shutdown() {
             work_.reset();
         }
     };
@@ -71,10 +71,10 @@ public:
     round_robin( std::shared_ptr< boost::asio::io_context > const& io_ctx) :
         io_ctx_( io_ctx),
         suspend_timer_( * io_ctx_) {
-        // We use add_service() very deliberately. This will throw
+        // We use make_service() very deliberately. This will throw
         // service_already_exists if you pass the same io_context instance to
         // more than one round_robin instance.
-        boost::asio::add_service( * io_ctx_, new service( * io_ctx_) );
+        boost::asio::make_service< service >( static_cast< boost::asio::execution_context & >( * io_ctx_) );
         boost::asio::post( * io_ctx_, [this]() mutable {
 //]
 //[asio_rr_service_lambda
