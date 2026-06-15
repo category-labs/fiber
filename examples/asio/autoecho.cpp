@@ -183,10 +183,9 @@ void client( std::shared_ptr< boost::asio::io_context > const& io_ctx, tcp::acce
     print( tag(), ": echo-client started");
     for (unsigned count = 0; count < iterations; ++count) {
         tcp::resolver resolver( * io_ctx);
-        tcp::resolver::query query( tcp::v4(), "127.0.0.1", "9999");
-        tcp::resolver::iterator iterator = resolver.resolve( query);
+        tcp::resolver::results_type results = resolver.resolve( tcp::v4(), "127.0.0.1", "9999");
         tcp::socket s( * io_ctx);
-        boost::asio::connect( s, iterator);
+        boost::asio::connect( s, results);
         for (unsigned msg = 0; msg < 1; ++msg) {
             std::ostringstream msgbuf;
             msgbuf << "from " << fiber_names.lookup() << " " << count << "." << msg;

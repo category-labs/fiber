@@ -28,10 +28,9 @@ int main( int argc, char* argv[]) {
         }
         boost::asio::io_context io_context;
         tcp::resolver resolver( io_context);
-        tcp::resolver::query query( tcp::v4(), argv[1], "9997");
-        tcp::resolver::iterator iterator = resolver.resolve(query);
+        tcp::resolver::results_type results = resolver.resolve( tcp::v4(), argv[1], "9997");
         tcp::socket s( io_context);
-        boost::asio::connect( s, iterator);
+        boost::asio::connect( s, results);
         char msg[max_length];
         std::string queue( argv[2]);
         std::memset( msg, '\0', max_length);
