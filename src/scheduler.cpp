@@ -92,7 +92,16 @@ scheduler::dispatch() noexcept {
         if ( shutdown_) {
             // notify sched-algorithm about termination
             algo_->notify();
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+            bool empty;
+            {
+                detail::spinlock_lock lk{ worker_splk_ };
+                empty = worker_queue_.empty();
+            }
+            if ( empty ) {
+#else
             if ( worker_queue_.empty() ) {
+#endif
                 break;
             }
         }
@@ -148,11 +157,28 @@ scheduler::schedule_from_remote( context * ctx) noexcept {
     BOOST_ASSERT( ! ctx->ready_is_linked() );
     BOOST_ASSERT( ! ctx->remote_ready_is_linked() );
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
-    // protect for concurrent access
-    detail::spinlock_lock lk{ remote_ready_splk_ };
+    // Scheduler invariants checked by both remote paths. Hoisted above the
+    // awakened_from_remote fast-path so that successfully taking it does
+    // not bypass the debug-time contract enforced by the slow path.
     BOOST_ASSERT( ! shutdown_);
     BOOST_ASSERT( nullptr != main_ctx_);
     BOOST_ASSERT( nullptr != dispatcher_ctx_.get() );
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    // Let the algorithm handle cross-thread scheduling directly if it
+    // supports a thread-safe ready-queue (e.g. a shared priority queue).
+    // The subsequent ctx->detach() inside awakened_from_remote() is
+    // serialized against the owning thread's attach by worker_splk_.
+    if ( ! ctx->is_context( type::pinned_context) ) {
+        if ( algo_->awakened_from_remote( ctx) ) {
+            algo_->notify();
+            return;
+        }
+    }
+#endif
+    // fall back to remote_ready_queue_ for pinned contexts, algorithms that
+    // don't implement awakened_from_remote, or builds where the thread-safety
+    // machinery is disabled. Protect for concurrent access.
+    detail::spinlock_lock lk{ remote_ready_splk_ };
     // push new context to remote ready-queue
     ctx->remote_ready_link( remote_ready_queue_);
     lk.unlock();
@@ -178,7 +204,14 @@ scheduler::terminate( detail::spinlock_lock & lk, context * ctx) noexcept {
     // the dispatcher-context will call
     ctx->terminated_link( terminated_queue_);
     // remove from the worker-queue
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    {
+        detail::spinlock_lock wlk{ worker_splk_ };
+        ctx->worker_unlink();
+    }
+#else
     ctx->worker_unlink();
+#endif
     // release lock
     lk.unlock();
     // resume another fiber
@@ -263,6 +296,12 @@ scheduler::attach_worker_context( context * ctx) noexcept {
 #endif
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
     BOOST_ASSERT( ! ctx->worker_is_linked() );
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    // Serialize against remote detach_worker_context() (called from another
+    // thread's awakened_from_remote() via ctx->detach()) and against
+    // worker_queue_ traversal in dispatch()/terminate().
+    detail::spinlock_lock lk{ worker_splk_ };
+#endif
     ctx->worker_link( worker_queue_);
     ctx->scheduler_ = this;
     // an attached context must belong at least to worker-queue
@@ -276,8 +315,14 @@ scheduler::detach_worker_context( context * ctx) noexcept {
     BOOST_ASSERT( ! ctx->remote_ready_is_linked() );
 #endif
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
-    BOOST_ASSERT( ctx->worker_is_linked() );
     BOOST_ASSERT( ! ctx->is_context( type::pinned_context) );
+#if defined(BOOST_FIBERS_AWAKENED_FROM_REMOTE)
+    // Serialize against the owning thread's attach_worker_context() so a
+    // remote awakened_from_remote() path that calls ctx->detach() can't
+    // race with another fiber being attached on the owner thread.
+    detail::spinlock_lock lk{ worker_splk_ };
+#endif
+    BOOST_ASSERT( ctx->worker_is_linked() );
     ctx->worker_unlink();
     BOOST_ASSERT( ! ctx->worker_is_linked() );
     ctx->scheduler_ = nullptr;

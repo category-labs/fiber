@@ -38,6 +38,14 @@ public:
 
     virtual void awakened( context *) noexcept = 0;
 
+    // Optional cross-thread scheduling extension. When the scheduler is woken
+    // from a remote thread (via schedule_from_remote), it gives the algorithm
+    // a chance to handle the wakeup directly — typically by pushing into a
+    // thread-safe ready-queue (e.g. a shared priority queue). Returning true
+    // claims the wake; returning false falls back to the per-thread
+    // remote_ready_queue_. Default returns false.
+    virtual bool awakened_from_remote( context *) noexcept { return false; }
+
     virtual context * pick_next() noexcept = 0;
 
     virtual bool has_ready_fibers() const noexcept = 0;
