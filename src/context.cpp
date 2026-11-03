@@ -195,7 +195,14 @@ context::resume( detail::spinlock_lock & lk) noexcept {
     // pass pointer to the context that resumes `this`
     std::move( c_).resume_with([prev,&lk](boost::context::fiber && c){
                 prev->c_ = std::move( c);
+                // lk lives on prev's stack, and once the mutex is released a
+                // remote waker may hand prev to another thread. Leave lk
+                // bound but unlocked before releasing the mutex.
+#if ! defined(BOOST_FIBERS_NO_ATOMICS)
+                detail::spinlock_lock{ * lk.mutex(), std::defer_lock }.swap( lk);
+#else
                 lk.unlock();
+#endif
                 return boost::context::fiber{};
             });
 }
