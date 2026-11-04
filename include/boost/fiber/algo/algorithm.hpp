@@ -38,6 +38,17 @@ public:
 
     virtual void awakened( context *) noexcept = 0;
 
+    // Called by scheduler::schedule_from_remote() on the waking thread, not
+    // the thread owning ctx, and never for a pinned context. Return true
+    // after detaching ctx and publishing it in a ready-queue shared between
+    // threads. Return false to let the owning thread schedule ctx through its
+    // remote ready-queue. Like notify(), this may touch only thread-safe
+    // state. The owning scheduler must not replace its algorithm while it
+    // has worker contexts that can be woken.
+    virtual bool awakened_from_remote( context *) noexcept {
+        return false;
+    }
+
     virtual context * pick_next() noexcept = 0;
 
     virtual bool has_ready_fibers() const noexcept = 0;

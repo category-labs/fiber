@@ -92,6 +92,7 @@ scheduler::dispatch() noexcept {
         if ( shutdown_) {
             // notify sched-algorithm about termination
             algo_->notify();
+            detail::spinlock_lock lk{ worker_splk_ };
             if ( worker_queue_.empty() ) {
                 break;
             }
@@ -148,16 +149,25 @@ scheduler::schedule_from_remote( context * ctx) noexcept {
     BOOST_ASSERT( ! ctx->ready_is_linked() );
     BOOST_ASSERT( ! ctx->remote_ready_is_linked() );
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
+    BOOST_ASSERT( nullptr != main_ctx_);
+    BOOST_ASSERT( nullptr != dispatcher_ctx_.get() );
+    // Once ctx is detached or on the remote ready-queue, the owning thread
+    // may finish and destroy this scheduler, so hold the algorithm and touch
+    // no member afterwards.
+    algo::algorithm::ptr_t algo{ algo_ };
+    if ( ! ctx->is_context( type::pinned_context) &&
+            algo->awakened_from_remote( ctx) ) {
+        algo->notify();
+        return;
+    }
     // protect for concurrent access
     detail::spinlock_lock lk{ remote_ready_splk_ };
     BOOST_ASSERT( ! shutdown_);
-    BOOST_ASSERT( nullptr != main_ctx_);
-    BOOST_ASSERT( nullptr != dispatcher_ctx_.get() );
     // push new context to remote ready-queue
     ctx->remote_ready_link( remote_ready_queue_);
     lk.unlock();
     // notify scheduler
-    algo_->notify();
+    algo->notify();
 }
 #endif
 
@@ -178,7 +188,10 @@ scheduler::terminate( detail::spinlock_lock & lk, context * ctx) noexcept {
     // the dispatcher-context will call
     ctx->terminated_link( terminated_queue_);
     // remove from the worker-queue
-    ctx->worker_unlink();
+    {
+        detail::spinlock_lock wlk{ worker_splk_ };
+        ctx->worker_unlink();
+    }
     // release lock
     lk.unlock();
     // resume another fiber
@@ -263,6 +276,7 @@ scheduler::attach_worker_context( context * ctx) noexcept {
 #endif
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
     BOOST_ASSERT( ! ctx->worker_is_linked() );
+    detail::spinlock_lock lk{ worker_splk_ };
     ctx->worker_link( worker_queue_);
     ctx->scheduler_ = this;
     // an attached context must belong at least to worker-queue
@@ -276,8 +290,9 @@ scheduler::detach_worker_context( context * ctx) noexcept {
     BOOST_ASSERT( ! ctx->remote_ready_is_linked() );
 #endif
     BOOST_ASSERT( ! ctx->terminated_is_linked() );
-    BOOST_ASSERT( ctx->worker_is_linked() );
     BOOST_ASSERT( ! ctx->is_context( type::pinned_context) );
+    detail::spinlock_lock lk{ worker_splk_ };
+    BOOST_ASSERT( ctx->worker_is_linked() );
     ctx->worker_unlink();
     BOOST_ASSERT( ! ctx->worker_is_linked() );
     ctx->scheduler_ = nullptr;

@@ -75,6 +75,9 @@ private:
     // worker-queue contains all context' managed by this scheduler
     // except main-context and dispatcher-context
     // unlink happens on destruction of a context
+    // guarded by worker_splk_: awakened_from_remote() may detach a worker
+    // on another thread
+    detail::spinlock                                            worker_splk_{};
     worker_queue_type                                           worker_queue_{};
     // terminated-queue contains context' which have been terminated
     terminated_queue_type                                       terminated_queue_{};
